@@ -1,10 +1,15 @@
 const db = require('./db')
 const queue = require('./queue')
+const allowedStates = new Set(require('./config/states.json').states)
 
 const args = process.argv.slice(2)
 db.init()
 
 function print(tasks) {
+  if (!tasks.length) {
+    console.log('no tasks')
+    return
+  }
   for (const t of tasks) {
     const agentLabel = t.agent ? ` @${t.agent}` : ''
     console.log(`#${t.id} [${t.state}]${agentLabel} ${t.title || ''}`)
@@ -17,7 +22,13 @@ if (cmd === 'add') {
   db.createTask({ title, state: 'ready' })
   console.log('task added')
 } else if (cmd === 'list') {
-  print(db.listTasks(args[1]))
+  const state = args[1]
+  if (state && !allowedStates.has(state)) {
+    console.error(`invalid state filter: ${state}`)
+    process.exitCode = 1
+  } else {
+    print(db.listTasks(state))
+  }
 } else if (cmd === 'next') {
   const agent = args[1] || 'cli'
   const task = queue.next(agent)

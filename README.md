@@ -171,6 +171,19 @@ node cli.js fail <task_id>
 }
 ```
 
+New tasks are created in `inbox` by default.  
+To be picked up by an agent (`/tasks/next` or `/tasks/:id/claim`), a task must be moved to `ready`.
+
+**Example transition:**
+
+```bash
+# Create task (starts in inbox)
+node cli.js add "Download video"
+
+# Move task to ready so it can be picked up
+node cli.js state <task_id> ready
+```
+
 ---
 
 ## Task Dependencies & Retries
