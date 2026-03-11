@@ -17,7 +17,6 @@ const panelCloseButtons = Array.from(document.querySelectorAll('[data-close-pane
 const panels = Array.from(document.querySelectorAll('.floating-panel'))
 
 const createTaskType = document.getElementById('create-task-type')
-const createState = document.getElementById('create-state')
 const editTaskType = document.getElementById('edit-task-type')
 
 const cardTemplate = document.getElementById('card-template')
@@ -63,12 +62,7 @@ function populateSelectors() {
     nextTypeFilter.append(option(type, type))
   }
 
-  for (const state of states) {
-    createState.append(option(state, state))
-  }
-
   createTaskType.value = 'general'
-  createState.value = 'inbox'
 }
 
 function setDockOpen(open) {
@@ -259,7 +253,6 @@ async function createTask(event) {
     description: formData.get('description') || null,
     priority: Number(formData.get('priority') || 0),
     taskType: formData.get('taskType'),
-    state: formData.get('state')
   }
 
   try {
@@ -270,7 +263,6 @@ async function createTask(event) {
     })
     createForm.reset()
     createTaskType.value = payload.taskType || 'general'
-    createState.value = 'inbox'
     showStatus('Task created')
     await loadTasks()
     openPanel('none')

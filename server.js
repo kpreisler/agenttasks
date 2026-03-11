@@ -42,8 +42,8 @@ function createApp() {
     if (inputType && !allowedTaskTypes.has(inputType)) {
       return res.status(400).json({ status: 'error', error: 'invalid taskType' })
     }
-    db.createTask(body)
-    return res.json({ status: 'ok' })
+    const taskId = db.createTask(body)
+    return res.json({ status: 'ok', id: Number(taskId) })
   })
 
   app.get('/tasks/next', (req, res) => {

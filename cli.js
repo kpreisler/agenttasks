@@ -39,7 +39,7 @@ if (cmd === 'add') {
   } else {
     const rest = stripFlag(args.slice(1), '--type')
     const title = rest.join(' ')
-    db.createTask({ title, state: 'ready', task_type: taskType || 'general' })
+    db.createTask({ title, task_type: taskType || 'general' })
     console.log('task added')
   }
 } else if (cmd === 'list') {
