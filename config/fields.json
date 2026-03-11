@@ -1,0 +1,7 @@
+{
+  "fields": {
+    "title": "TEXT",
+    "priority": "INTEGER",
+    "agent": "TEXT"
+  }
+}

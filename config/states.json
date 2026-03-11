@@ -1,0 +1,3 @@
+{
+  "states": ["inbox","ready","doing","blocked","done","failed"]
+}

@@ -1,0 +1,6 @@
+{
+  "readyStates": ["ready"],
+  "workingState": "doing",
+  "maxAttempts": 3,
+  "retryDelayMs": 5000
+}
