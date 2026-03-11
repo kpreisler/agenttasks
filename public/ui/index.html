@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Tasks Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <div class="page-bg"></div>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Agent Tasks</p>
+          <h1>Work Board</h1>
+        </div>
+        <p class="status" id="status">Loading…</p>
+      </header>
+
+      <section class="overlay-panels" id="overlay-panels">
+        <form id="create-form" class="panel floating-panel" data-panel="create">
+          <header class="panel-head">
+            <h2>New Task</h2>
+            <button type="button" class="panel-close" data-close-panels>Close</button>
+          </header>
+          <label>
+            Title
+            <input type="text" name="title" required placeholder="Write campaign outline" />
+          </label>
+          <label>
+            Description
+            <textarea name="description" rows="3" placeholder="Short task brief"></textarea>
+          </label>
+          <div class="row">
+            <label>
+              Type
+              <select name="taskType" id="create-task-type"></select>
+            </label>
+            <label>
+              Priority
+              <input type="number" name="priority" value="0" />
+            </label>
+          </div>
+          <label>
+            Initial State
+            <select name="state" id="create-state"></select>
+          </label>
+          <button type="submit">Create Task</button>
+        </form>
+
+        <section class="panel floating-panel quick-actions" data-panel="queue">
+          <header class="panel-head">
+            <h2>Queue Actions</h2>
+            <button type="button" class="panel-close" data-close-panels>Close</button>
+          </header>
+          <label>
+            Agent Name
+            <input id="agent" type="text" value="web" />
+          </label>
+          <label>
+            Next Filter (type)
+            <select id="next-type-filter">
+              <option value="">Any type</option>
+            </select>
+          </label>
+          <div class="button-row">
+            <button id="claim-next" type="button">Claim Next</button>
+            <button id="refresh-board" type="button" class="ghost">Refresh</button>
+          </div>
+          <p id="selected-task" class="hint">No card selected</p>
+          <button id="claim-selected" type="button" class="ghost" disabled>Claim Selected Card</button>
+        </section>
+
+        <form id="edit-form" class="panel floating-panel" data-panel="edit">
+          <header class="panel-head">
+            <h2>Edit Task</h2>
+            <button type="button" class="panel-close" data-close-panels>Close</button>
+          </header>
+          <p class="hint" id="edit-target">Select a card to edit.</p>
+          <label>
+            Title
+            <input type="text" name="title" />
+          </label>
+          <label>
+            Description
+            <textarea name="description" rows="3"></textarea>
+          </label>
+          <div class="row">
+            <label>
+              Type
+              <select name="taskType" id="edit-task-type"></select>
+            </label>
+            <label>
+              Priority
+              <input type="number" name="priority" />
+            </label>
+          </div>
+          <button type="submit">Save Changes</button>
+        </form>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board" aria-label="Task board"></div>
+      </section>
+
+      <section class="action-dock" id="action-dock" aria-label="Quick actions">
+        <div class="action-menu" id="action-menu">
+          <button type="button" data-open-panel="create">New task</button>
+          <button type="button" data-open-panel="queue">Queue tools</button>
+          <button type="button" data-open-panel="none" class="ghost">Hide panels</button>
+        </div>
+        <button type="button" class="launcher" id="launcher" aria-expanded="false" aria-controls="action-menu">+</button>
+      </section>
+    </main>
+
+    <template id="card-template">
+      <article class="task-card" draggable="true">
+        <header>
+          <p class="meta"></p>
+          <span class="type-badge"></span>
+        </header>
+        <h3></h3>
+        <p class="desc"></p>
+        <footer>
+          <span class="agent"></span>
+        </footer>
+      </article>
+    </template>
+
+    <script src="/ui/app.js" defer></script>
+  </body>
+</html>

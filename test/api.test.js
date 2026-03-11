@@ -391,6 +391,46 @@ test('GET /tasks supports filtering by taskType and combined filters', async () 
   }
 })
 
+test('GET /tasks supports filtering by agent and combined state+agent', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'agent-a-doing', state: 'doing', agent: 'agent-a' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'agent-a-ready', state: 'ready', agent: 'agent-a' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'agent-b-doing', state: 'doing', agent: 'agent-b' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks?agent=agent-a`)
+    assert.equal(res.status, 200)
+    let tasks = await res.json()
+    assert.equal(tasks.length, 2)
+    assert.ok(tasks.every((t) => t.agent === 'agent-a'))
+
+    res = await fetch(`${srv.baseUrl}/tasks?state=doing&agent=agent-a`)
+    assert.equal(res.status, 200)
+    tasks = await res.json()
+    assert.equal(tasks.length, 1)
+    assert.equal(tasks[0].title, 'agent-a-doing')
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
 test('legacy /complete endpoint still marks task done', async () => {
   const ctx = createIsolatedContext()
   const app = ctx.createApp()

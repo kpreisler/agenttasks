@@ -20,6 +20,7 @@ Supports:
 - [Project Structure](#project-structure)  
 - [Configuration](#configuration)  
 - [Running the API](#running-the-api)  
+- [Web UI](#web-ui)  
 - [CLI Usage](#cli-usage)  
 - [API Endpoints](#api-endpoints)  
 - [Task Dependencies & Retries](#task-dependencies--retries)  
@@ -52,6 +53,10 @@ task-manager-v1/
 ├─ db.js                 # SQLite DB helper
 ├─ queue.js              # Queue and task logic
 ├─ cli.js                # CLI for adding/listing tasks
+├─ public/ui/            # Drag/drop web board
+│   ├─ index.html
+│   ├─ styles.css
+│   └─ app.js
 ├─ config/
 │   ├─ states.json       # Task states
 │   ├─ fields.json       # Configurable task fields
@@ -75,6 +80,7 @@ task-manager-v1/
 ```json
 {
   "title": "TEXT",
+  "description": "TEXT",
   "priority": "INTEGER",
   "agent": "TEXT",
   "task_type": "TEXT"
@@ -111,6 +117,16 @@ npm start
 ```
 
 API is available at `http://localhost:3000`.
+
+## Web UI
+
+Open `http://localhost:3000/ui` for the drag-and-drop board interface.
+
+Features:
+* Column board by task state
+* Drag tasks between states (Trello-style)
+* Create tasks, edit task details, claim next, and claim selected cards
+* Auto-refresh every few seconds
 
 ---
 
@@ -172,7 +188,7 @@ node cli.js fail <task_id>
 
 | Method | Endpoint                 | Description                         |
 | ------ | ------------------------ | ----------------------------------- |
-| GET    | `/tasks`                 | List tasks (optional `?state=` and/or `?taskType=`) |
+| GET    | `/tasks`                 | List tasks (optional `?state=`, `?taskType=`, and/or `?agent=`) |
 | GET    | `/tasks/:id`             | Get a task by id                    |
 | POST   | `/tasks`                 | Add a new task (JSON body)          |
 | PATCH  | `/tasks/:id`             | Update editable task fields         |
@@ -199,6 +215,16 @@ node cli.js fail <task_id>
 
 `GET /tasks` returns each task with an `id` field.  
 Use that `id` for endpoints like `GET /tasks/:id`, `PATCH /tasks/:id`, `/tasks/:id/state`, `/tasks/:id/claim`, and dependency routes.
+
+Heartbeat pattern example (agent checks current work, else claims next):
+
+```bash
+# 1) Check in-progress tasks for this agent
+curl "http://localhost:3000/tasks?state=doing&agent=worker-a"
+
+# 2) If none, claim next matching task
+curl "http://localhost:3000/tasks/next?agent=worker-a&taskType=research"
+```
 
 New tasks are created in `inbox` by default.  
 To be picked up by an agent (`/tasks/next` or `/tasks/:id/claim`), a task must be moved to `ready`.

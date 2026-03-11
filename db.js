@@ -68,17 +68,24 @@ function createTask(data) {
   return result.lastInsertRowid
 }
 
-function listTasks(state, taskType) {
-  if (state && taskType) {
-    return db.prepare('SELECT * FROM tasks WHERE state=? AND task_type=? ORDER BY created_at DESC').all(state, taskType)
-  }
+function listTasks(state, taskType, agent) {
+  const clauses = []
+  const values = []
   if (state) {
-    return db.prepare('SELECT * FROM tasks WHERE state=? ORDER BY created_at DESC').all(state)
+    clauses.push('state=?')
+    values.push(state)
   }
   if (taskType) {
-    return db.prepare('SELECT * FROM tasks WHERE task_type=? ORDER BY created_at DESC').all(taskType)
+    clauses.push('task_type=?')
+    values.push(taskType)
   }
-  return db.prepare('SELECT * FROM tasks ORDER BY created_at DESC').all()
+  if (agent) {
+    clauses.push('agent=?')
+    values.push(agent)
+  }
+
+  const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''
+  return db.prepare(`SELECT * FROM tasks${where} ORDER BY created_at DESC`).all(...values)
 }
 
 function updateState(id, state) {

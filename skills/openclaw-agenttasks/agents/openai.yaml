@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgentTasks OpenClaw"
+  short_description: "Operate the AgentTasks API/CLI and web board"
+  default_prompt: "Use $openclaw-agenttasks to operate tasks through CLI/API/UI (create, claim, move states, manage dependencies, and report status) without changing implementation code."

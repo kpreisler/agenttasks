@@ -1,4 +1,5 @@
 const express = require('express')
+const path = require('node:path')
 const db = require('./db')
 const queue = require('./queue')
 const allowedStates = new Set(require('./config/states.json').states)
@@ -7,19 +8,32 @@ const allowedTaskTypes = new Set(require('./config/task_types.json').taskTypes)
 function createApp() {
   const app = express()
   app.use(express.json())
+  app.use('/ui', express.static(path.join(__dirname, 'public/ui')))
 
   db.init()
+
+  app.get('/', (req, res) => {
+    res.redirect('/ui')
+  })
+
+  app.get('/meta', (req, res) => {
+    return res.json({
+      states: Array.from(allowedStates),
+      taskTypes: Array.from(allowedTaskTypes)
+    })
+  })
 
   app.get('/tasks', (req, res) => {
     const state = req.query.state
     const taskType = req.query.taskType
+    const agent = req.query.agent
     if (state && !allowedStates.has(state)) {
       return res.status(400).json({ status: 'error', error: 'invalid state filter' })
     }
     if (taskType && !allowedTaskTypes.has(taskType)) {
       return res.status(400).json({ status: 'error', error: 'invalid taskType filter' })
     }
-    return res.json(db.listTasks(state, taskType))
+    return res.json(db.listTasks(state, taskType, agent))
   })
 
   app.post('/tasks', (req, res) => {
@@ -147,15 +161,22 @@ function createApp() {
   return app
 }
 
-function start(port = 3000) {
+function start(port = 3000, host = process.env.HOST || '127.0.0.1') {
   const app = createApp()
-  return app.listen(port, () => {
-    console.log(`API running on http://localhost:${port}`)
+  const server = app.listen(port, host)
+  server.on('listening', () => {
+    console.log(`API running on http://${host}:${port}`)
   })
+  server.on('error', (err) => {
+    console.error(`API failed to start on ${host}:${port}: ${err.message}`)
+    process.exitCode = 1
+  })
+  return server
 }
 
 if (require.main === module) {
-  start(3000)
+  const port = Number(process.env.PORT || 3000)
+  start(port)
 }
 
 module.exports = { createApp, start }
