@@ -22,6 +22,12 @@ if (cmd === 'add') {
   const task = queue.next(agent)
   if (!task) console.log('no tasks ready')
   else console.log(task)
+} else if (cmd === 'claim') {
+  const taskId = args[1]
+  const agent = args[2] || 'cli'
+  const task = queue.claim(taskId, agent)
+  if (!task) console.log('task is not claimable')
+  else console.log(task)
 } else if (cmd === 'done') {
   queue.complete(args[1])
 } else if (cmd === 'state') {
@@ -48,5 +54,5 @@ if (cmd === 'add') {
 } else if (cmd === 'fail') {
   queue.fail(args[1], 'cli failure')
 } else {
-  console.log(`Commands\nnode cli.js add "task"\nnode cli.js list\nnode cli.js next agent\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
+  console.log(`Commands\nnode cli.js add "task"\nnode cli.js list\nnode cli.js next agent\nnode cli.js claim <id> <agent>\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
 }

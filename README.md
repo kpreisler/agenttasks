@@ -118,6 +118,9 @@ node cli.js list
 # Claim next task for an agent
 node cli.js next worker1
 
+# Claim a specific task for an agent
+node cli.js claim <task_id> <agent>
+
 # Set task to any state
 node cli.js state <task_id> <state>
 
@@ -146,6 +149,7 @@ node cli.js fail <task_id>
 | GET    | `/tasks`                 | List all tasks                      |
 | POST   | `/tasks`                 | Add a new task (JSON body)          |
 | GET    | `/tasks/next?agent=name` | Get next runnable task for an agent |
+| POST   | `/tasks/:id/claim`       | Claim specific task for an agent    |
 | POST   | `/tasks/:id/state`       | Set task state (generic)            |
 | GET    | `/tasks/:id/dependencies` | List dependencies for task         |
 | POST   | `/tasks/:id/dependencies` | Add dependency/dependencies to task|
@@ -175,6 +179,7 @@ node cli.js fail <task_id>
 ### Dependency Enforcement Rules
 
 * Dependency checks are enforced when fetching work from the queue (`GET /tasks/next`), not when setting state.
+* The same claimability rules apply to direct claiming (`POST /tasks/:id/claim` and `node cli.js claim`).
 * A task is runnable only if it is in `ready` state and **all** dependency tasks are in `done` state.
 * You can still manually set any valid state through `POST /tasks/:id/state`, even if dependencies are unresolved.
 * If a task has no dependencies, it can be dequeued as soon as it is `ready` (and `run_after` allows it).

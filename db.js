@@ -101,6 +101,13 @@ function nextRunnable() {
   return null
 }
 
+function getClaimableTaskById(id) {
+  const task = db.prepare("SELECT * FROM tasks WHERE id=? AND state='ready' AND run_after<=?").get(id, Date.now())
+  if (!task) return null
+  if (!dependenciesDone(task.id)) return null
+  return task
+}
+
 function claimTask(id, agent) {
   db.prepare("UPDATE tasks SET state='doing',agent=?,updated_at=? WHERE id=?").run(agent, Date.now(), id)
 }
@@ -136,6 +143,7 @@ module.exports = {
   addDependencies,
   listDependencies,
   removeDependency,
+  getClaimableTaskById,
   nextRunnable,
   claimTask,
   failTask,

@@ -25,6 +25,18 @@ function createApp() {
     return res.json(task)
   })
 
+  app.post('/tasks/:id/claim', (req, res) => {
+    const { agent } = req.body || {}
+    if (!agent) {
+      return res.status(400).json({ status: 'error', error: 'agent is required' })
+    }
+    const task = queue.claim(req.params.id, agent)
+    if (!task) {
+      return res.status(409).json({ status: 'error', error: 'task is not claimable' })
+    }
+    return res.json(task)
+  })
+
   app.post('/tasks/:id/state', (req, res) => {
     const { state, type, message } = req.body || {}
     if (!state || !allowedStates.has(state)) {

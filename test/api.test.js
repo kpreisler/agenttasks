@@ -119,6 +119,38 @@ test('GET /tasks/next claims task for agent and returns doing state', async () =
   }
 })
 
+test('POST /tasks/:id/claim claims selected claimable task', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'pick-me', state: 'ready' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    const tasks = await res.json()
+    const taskId = tasks[0].id
+
+    res = await fetch(`${srv.baseUrl}/tasks/${taskId}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ agent: 'dashboard-user' })
+    })
+    assert.equal(res.status, 200)
+    const claimed = await res.json()
+    assert.equal(claimed.state, 'doing')
+    assert.equal(claimed.agent, 'dashboard-user')
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
 test('legacy /complete endpoint still marks task done', async () => {
   const ctx = createIsolatedContext()
   const app = ctx.createApp()
@@ -293,6 +325,62 @@ test('dependencies block queue until dependency task is done', async () => {
     res = await fetch(`${srv.baseUrl}/tasks/next?agent=worker-2`)
     nextTask = await res.json()
     assert.equal(nextTask.id, blockedTask.id)
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
+test('POST /tasks/:id/claim rejects non-claimable tasks with unresolved dependencies', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'dep', state: 'ready' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'target', state: 'ready' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    const tasks = await res.json()
+    const dep = tasks.find((t) => t.title === 'dep')
+    const target = tasks.find((t) => t.title === 'target')
+
+    await fetch(`${srv.baseUrl}/tasks/${target.id}/dependencies`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dependsOn: dep.id })
+    })
+
+    res = await fetch(`${srv.baseUrl}/tasks/${target.id}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ agent: 'dashboard-user' })
+    })
+    assert.equal(res.status, 409)
+
+    await fetch(`${srv.baseUrl}/tasks/${dep.id}/state`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: 'done' })
+    })
+
+    res = await fetch(`${srv.baseUrl}/tasks/${target.id}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ agent: 'dashboard-user' })
+    })
+    assert.equal(res.status, 200)
+    const claimed = await res.json()
+    assert.equal(claimed.state, 'doing')
   } finally {
     await srv.close()
     ctx.db.close()
