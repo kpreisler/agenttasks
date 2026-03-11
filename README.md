@@ -220,12 +220,13 @@ node cli.js state <task_id> ready
 * A task is runnable only if it is in `ready` state and **all** dependency tasks are in `done` state.
 * You can still manually set any valid state through `POST /tasks/:id/state`, even if dependencies are unresolved.
 * If a task has no dependencies, it can be dequeued as soon as it is `ready` (and `run_after` allows it).
+* If a task is in `blocked`, it will automatically move to `ready` when all of its dependencies become `done`.
 
 **Example flow:**
 
 1. Task `B` depends on task `A`.
-2. `B` can be set to `ready`, but `/tasks/next` will skip `B` while `A` is not `done`.
-3. Once `A` is set to `done`, `B` becomes eligible for `/tasks/next`.
+2. If `B` is `blocked`, it stays blocked while `A` is not `done`.
+3. Once `A` is set to `done`, `B` auto-moves to `ready` and becomes eligible for `/tasks/next`.
 
 ---
 

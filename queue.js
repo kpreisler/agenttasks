@@ -17,9 +17,23 @@ function claim(id, agent) {
   return db.getTaskById(task.id)
 }
 
+function unblockDependentsIfReady(doneTaskId) {
+  const dependents = db.listDependentTaskIds(doneTaskId)
+  for (const d of dependents) {
+    const task = db.getTaskById(d.task_id)
+    if (!task || task.state !== 'blocked') continue
+    if (!db.dependenciesDone(task.id)) continue
+    db.updateState(task.id, 'ready')
+    db.logEvent(task.id, 'unblock', `dependencies complete after task ${doneTaskId}`)
+  }
+}
+
 function setState(id, state, eventType = 'state', message = `state changed to ${state}`) {
   db.updateState(id, state)
   db.logEvent(id, eventType, message)
+  if (state === 'done') {
+    unblockDependentsIfReady(id)
+  }
 }
 
 function complete(id) {

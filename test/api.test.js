@@ -562,3 +562,110 @@ test('POST /tasks/:id/claim rejects non-claimable tasks with unresolved dependen
     fs.rmSync(ctx.dir, { recursive: true, force: true })
   }
 })
+
+test('blocked task automatically moves to ready when all dependencies are done', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'dep-one', state: 'ready' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'blocked-child', state: 'blocked' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    let tasks = await res.json()
+    const dep = tasks.find((t) => t.title === 'dep-one')
+    const child = tasks.find((t) => t.title === 'blocked-child')
+
+    await fetch(`${srv.baseUrl}/tasks/${child.id}/dependencies`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dependsOn: dep.id })
+    })
+
+    await fetch(`${srv.baseUrl}/tasks/${dep.id}/state`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: 'done' })
+    })
+
+    res = await fetch(`${srv.baseUrl}/tasks`)
+    tasks = await res.json()
+    const updatedChild = tasks.find((t) => t.id === child.id)
+    assert.equal(updatedChild.state, 'ready')
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
+test('blocked task stays blocked until all dependencies are done', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'dep-a', state: 'ready' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'dep-b', state: 'ready' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'blocked-multi', state: 'blocked' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    let tasks = await res.json()
+    const depA = tasks.find((t) => t.title === 'dep-a')
+    const depB = tasks.find((t) => t.title === 'dep-b')
+    const child = tasks.find((t) => t.title === 'blocked-multi')
+
+    await fetch(`${srv.baseUrl}/tasks/${child.id}/dependencies`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dependsOn: [depA.id, depB.id] })
+    })
+
+    await fetch(`${srv.baseUrl}/tasks/${depA.id}/state`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: 'done' })
+    })
+
+    res = await fetch(`${srv.baseUrl}/tasks`)
+    tasks = await res.json()
+    let updatedChild = tasks.find((t) => t.id === child.id)
+    assert.equal(updatedChild.state, 'blocked')
+
+    await fetch(`${srv.baseUrl}/tasks/${depB.id}/state`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: 'done' })
+    })
+
+    res = await fetch(`${srv.baseUrl}/tasks`)
+    tasks = await res.json()
+    updatedChild = tasks.find((t) => t.id === child.id)
+    assert.equal(updatedChild.state, 'ready')
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})

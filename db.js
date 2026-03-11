@@ -111,6 +111,10 @@ function removeDependency(taskId, dependsOnId) {
   return db.prepare('DELETE FROM task_dependencies WHERE task_id=? AND depends_on=?').run(taskId, dependsOnId)
 }
 
+function listDependentTaskIds(dependsOnId) {
+  return db.prepare('SELECT task_id FROM task_dependencies WHERE depends_on=?').all(dependsOnId)
+}
+
 function dependenciesDone(taskId) {
   const rows = db.prepare('SELECT t.state FROM task_dependencies d JOIN tasks t ON d.depends_on=t.id WHERE d.task_id=?').all(taskId)
   return rows.every((r) => r.state === 'done')
@@ -172,6 +176,8 @@ module.exports = {
   addDependencies,
   listDependencies,
   removeDependency,
+  listDependentTaskIds,
+  dependenciesDone,
   getClaimableTaskById,
   nextRunnable,
   claimTask,
