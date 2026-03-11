@@ -74,6 +74,39 @@ if (cmd === 'add') {
   else console.log(task)
 } else if (cmd === 'done') {
   queue.complete(args[1])
+} else if (cmd === 'update') {
+  const taskId = Number(args[1])
+  const existing = db.getTaskById(taskId)
+  if (!existing) {
+    console.error('task not found')
+    process.exitCode = 1
+  } else {
+    const taskType = readFlagValue(args, '--type')
+    if (taskType && !allowedTaskTypes.has(taskType)) {
+      console.error(`invalid task type: ${taskType}`)
+      process.exitCode = 1
+    } else {
+      const title = readFlagValue(args, '--title')
+      const description = readFlagValue(args, '--description')
+      const priority = readFlagValue(args, '--priority')
+      const agent = readFlagValue(args, '--agent')
+
+      const updates = {}
+      if (title !== null) updates.title = title
+      if (description !== null) updates.description = description
+      if (priority !== null) updates.priority = Number(priority)
+      if (agent !== null) updates.agent = agent
+      if (taskType !== null) updates.task_type = taskType
+
+      if (!Object.keys(updates).length) {
+        console.error('no updates provided')
+        process.exitCode = 1
+      } else {
+        db.updateTask(taskId, updates)
+        console.log('task updated')
+      }
+    }
+  }
 } else if (cmd === 'state') {
   queue.setState(args[1], args[2])
 } else if (cmd === 'dep') {
@@ -98,5 +131,5 @@ if (cmd === 'add') {
 } else if (cmd === 'fail') {
   queue.fail(args[1], 'cli failure')
 } else {
-  console.log(`Commands\nnode cli.js add "task" [--type <taskType>]\nnode cli.js list [state] [--type <taskType>]\nnode cli.js next [agent] [--type <taskType>]\nnode cli.js claim <id> <agent>\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
+  console.log(`Commands\nnode cli.js add "task" [--type <taskType>]\nnode cli.js list [state] [--type <taskType>]\nnode cli.js next [agent] [--type <taskType>]\nnode cli.js claim <id> <agent>\nnode cli.js update <id> [--title \"...\"] [--description \"...\"] [--priority <n>] [--type <taskType>] [--agent <name>]\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
 }

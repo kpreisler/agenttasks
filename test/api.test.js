@@ -93,6 +93,71 @@ test('POST /tasks/:id/state updates to any valid state and rejects invalid state
   }
 })
 
+test('GET /tasks/:id returns the task and PATCH /tasks/:id updates editable fields', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: 'orig title',
+        description: 'orig desc',
+        state: 'inbox',
+        taskType: 'research',
+        payload: { a: 1 }
+      })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    let tasks = await res.json()
+    const taskId = tasks[0].id
+
+    res = await fetch(`${srv.baseUrl}/tasks/${taskId}`)
+    assert.equal(res.status, 200)
+    let task = await res.json()
+    assert.equal(task.id, taskId)
+    assert.equal(task.title, 'orig title')
+
+    res = await fetch(`${srv.baseUrl}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        description: 'new desc',
+        taskType: 'marketing',
+        priority: 7,
+        payload: { b: 2 }
+      })
+    })
+    assert.equal(res.status, 200)
+    task = await res.json()
+    assert.equal(task.description, 'new desc')
+    assert.equal(task.task_type, 'marketing')
+    assert.equal(task.priority, 7)
+    assert.equal(task.payload, JSON.stringify({ b: 2 }))
+
+    res = await fetch(`${srv.baseUrl}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ taskType: 'not-valid' })
+    })
+    assert.equal(res.status, 400)
+
+    res = await fetch(`${srv.baseUrl}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: 'ready' })
+    })
+    assert.equal(res.status, 400)
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
 test('GET /tasks/next claims task for agent and returns doing state', async () => {
   const ctx = createIsolatedContext()
   const app = ctx.createApp()

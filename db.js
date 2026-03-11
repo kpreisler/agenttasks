@@ -61,7 +61,7 @@ function createTask(data) {
       const inputType = data.task_type || data.taskType
       return allowedTaskTypes.has(inputType) ? inputType : 'general'
     }
-    return data[c] || null
+    return data[c] ?? null
   })
   const state = allowedStates.has(data.state) ? data.state : 'inbox'
   const result = stmt.run(state, JSON.stringify(data.payload || {}), now, now, ...values)
@@ -83,6 +83,14 @@ function listTasks(state, taskType) {
 
 function updateState(id, state) {
   db.prepare('UPDATE tasks SET state=?,updated_at=? WHERE id=?').run(state, Date.now(), id)
+}
+
+function updateTask(id, updates) {
+  const entries = Object.entries(updates)
+  if (!entries.length) return { changes: 0 }
+  const setClause = entries.map(([key]) => `${key}=?`).join(',')
+  const values = entries.map(([, value]) => value)
+  return db.prepare(`UPDATE tasks SET ${setClause},updated_at=? WHERE id=?`).run(...values, Date.now(), id)
 }
 
 function logEvent(taskId, type, message) {
@@ -170,6 +178,7 @@ module.exports = {
   init,
   createTask,
   listTasks,
+  updateTask,
   updateState,
   logEvent,
   addDependency,

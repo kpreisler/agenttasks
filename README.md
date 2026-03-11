@@ -144,6 +144,9 @@ node cli.js next worker1 --type marketing
 # Claim a specific task for an agent
 node cli.js claim <task_id> <agent>
 
+# Update a task
+node cli.js update <task_id> --description "Updated details" --type marketing
+
 # Set task to any state
 node cli.js state <task_id> <state>
 
@@ -170,7 +173,9 @@ node cli.js fail <task_id>
 | Method | Endpoint                 | Description                         |
 | ------ | ------------------------ | ----------------------------------- |
 | GET    | `/tasks`                 | List tasks (optional `?state=` and/or `?taskType=`) |
+| GET    | `/tasks/:id`             | Get a task by id                    |
 | POST   | `/tasks`                 | Add a new task (JSON body)          |
+| PATCH  | `/tasks/:id`             | Update editable task fields         |
 | GET    | `/tasks/next?agent=name` | Get next runnable task (optional `&taskType=`) |
 | POST   | `/tasks/:id/claim`       | Claim specific task for an agent    |
 | POST   | `/tasks/:id/state`       | Set task state (generic)            |
@@ -191,6 +196,9 @@ node cli.js fail <task_id>
   "payload": { "url": "https://example.com/video.mp4" }
 }
 ```
+
+`GET /tasks` returns each task with an `id` field.  
+Use that `id` for endpoints like `GET /tasks/:id`, `PATCH /tasks/:id`, `/tasks/:id/state`, `/tasks/:id/claim`, and dependency routes.
 
 New tasks are created in `inbox` by default.  
 To be picked up by an agent (`/tasks/next` or `/tasks/:id/claim`), a task must be moved to `ready`.

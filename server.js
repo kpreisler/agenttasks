@@ -43,6 +43,44 @@ function createApp() {
     return res.json(task)
   })
 
+  app.get('/tasks/:id', (req, res) => {
+    const task = db.getTaskById(req.params.id)
+    if (!task) return res.status(404).json({ status: 'error', error: 'task not found' })
+    return res.json(task)
+  })
+
+  app.patch('/tasks/:id', (req, res) => {
+    const existing = db.getTaskById(req.params.id)
+    if (!existing) return res.status(404).json({ status: 'error', error: 'task not found' })
+
+    const body = req.body || {}
+    if ('state' in body) {
+      return res.status(400).json({ status: 'error', error: 'state is managed via /tasks/:id/state' })
+    }
+
+    const updates = {}
+    if ('title' in body) updates.title = body.title
+    if ('description' in body) updates.description = body.description
+    if ('priority' in body) updates.priority = body.priority
+    if ('agent' in body) updates.agent = body.agent
+    if ('payload' in body) updates.payload = JSON.stringify(body.payload || {})
+
+    if ('taskType' in body || 'task_type' in body) {
+      const taskType = body.taskType || body.task_type
+      if (!allowedTaskTypes.has(taskType)) {
+        return res.status(400).json({ status: 'error', error: 'invalid taskType' })
+      }
+      updates.task_type = taskType
+    }
+
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ status: 'error', error: 'no updatable fields provided' })
+    }
+
+    db.updateTask(req.params.id, updates)
+    return res.json(db.getTaskById(req.params.id))
+  })
+
   app.post('/tasks/:id/claim', (req, res) => {
     const { agent } = req.body || {}
     if (!agent) {

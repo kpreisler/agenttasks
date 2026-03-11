@@ -1,6 +1,7 @@
 {
   "fields": {
     "title": "TEXT",
+    "description": "TEXT",
     "priority": "INTEGER",
     "agent": "TEXT",
     "task_type": "TEXT"
