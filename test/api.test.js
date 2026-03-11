@@ -199,3 +199,103 @@ test('POST /tasks/:id/fail retries up to maxAttempts then marks failed', async (
     fs.rmSync(ctx.dir, { recursive: true, force: true })
   }
 })
+
+test('dependencies API can add/list/remove dependencies', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'parent', state: 'ready' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'child', state: 'ready' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    let tasks = await res.json()
+    const parent = tasks.find((t) => t.title === 'parent')
+    const child = tasks.find((t) => t.title === 'child')
+
+    res = await fetch(`${srv.baseUrl}/tasks/${child.id}/dependencies`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dependsOn: parent.id })
+    })
+    assert.equal(res.status, 200)
+
+    res = await fetch(`${srv.baseUrl}/tasks/${child.id}/dependencies`)
+    assert.equal(res.status, 200)
+    let deps = await res.json()
+    assert.deepEqual(deps.dependencies, [parent.id])
+
+    res = await fetch(`${srv.baseUrl}/tasks/${child.id}/dependencies/${parent.id}`, {
+      method: 'DELETE'
+    })
+    assert.equal(res.status, 200)
+    const rmPayload = await res.json()
+    assert.equal(rmPayload.removed, true)
+
+    res = await fetch(`${srv.baseUrl}/tasks/${child.id}/dependencies`)
+    deps = await res.json()
+    assert.deepEqual(deps.dependencies, [])
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
+test('dependencies block queue until dependency task is done', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'dependency', state: 'ready', priority: 20 })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'blocked-task', state: 'ready', priority: 10 })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    const tasks = await res.json()
+    const dependency = tasks.find((t) => t.title === 'dependency')
+    const blockedTask = tasks.find((t) => t.title === 'blocked-task')
+
+    res = await fetch(`${srv.baseUrl}/tasks/${blockedTask.id}/dependencies`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dependsOn: dependency.id })
+    })
+    assert.equal(res.status, 200)
+
+    res = await fetch(`${srv.baseUrl}/tasks/next?agent=worker-1`)
+    let nextTask = await res.json()
+    assert.equal(nextTask.id, dependency.id)
+
+    await fetch(`${srv.baseUrl}/tasks/${dependency.id}/state`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: 'done' })
+    })
+
+    res = await fetch(`${srv.baseUrl}/tasks/next?agent=worker-2`)
+    nextTask = await res.json()
+    assert.equal(nextTask.id, blockedTask.id)
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})

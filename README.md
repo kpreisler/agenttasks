@@ -121,6 +121,15 @@ node cli.js next worker1
 # Set task to any state
 node cli.js state <task_id> <state>
 
+# Add dependency: task_id depends on depends_on_id
+node cli.js dep add <task_id> <depends_on_id>
+
+# List dependency ids for task
+node cli.js dep list <task_id>
+
+# Remove dependency
+node cli.js dep rm <task_id> <depends_on_id>
+
 # Mark a task as done
 node cli.js done <task_id>
 
@@ -138,6 +147,9 @@ node cli.js fail <task_id>
 | POST   | `/tasks`                 | Add a new task (JSON body)          |
 | GET    | `/tasks/next?agent=name` | Get next runnable task for an agent |
 | POST   | `/tasks/:id/state`       | Set task state (generic)            |
+| GET    | `/tasks/:id/dependencies` | List dependencies for task         |
+| POST   | `/tasks/:id/dependencies` | Add dependency/dependencies to task|
+| DELETE | `/tasks/:id/dependencies/:dependsOnId` | Remove a dependency    |
 | POST   | `/tasks/:id/complete`    | Mark task complete (legacy shortcut)|
 | POST   | `/tasks/:id/fail`        | Mark task failed                    |
 | POST   | `/tasks/:id/event`       | Log a custom event for task         |
@@ -160,6 +172,19 @@ node cli.js fail <task_id>
 * Tasks automatically retry based on `queue.json`
 * Exceeding `maxAttempts` marks the task as `failed`
 
+### Dependency Enforcement Rules
+
+* Dependency checks are enforced when fetching work from the queue (`GET /tasks/next`), not when setting state.
+* A task is runnable only if it is in `ready` state and **all** dependency tasks are in `done` state.
+* You can still manually set any valid state through `POST /tasks/:id/state`, even if dependencies are unresolved.
+* If a task has no dependencies, it can be dequeued as soon as it is `ready` (and `run_after` allows it).
+
+**Example flow:**
+
+1. Task `B` depends on task `A`.
+2. `B` can be set to `ready`, but `/tasks/next` will skip `B` while `A` is not `done`.
+3. Once `A` is set to `done`, `B` becomes eligible for `/tasks/next`.
+
 ---
 
 ## License
@@ -181,4 +206,3 @@ BLOCKED     FAILED
 * **DOING** tasks are in progress.
 * **FAILED** tasks will retry based on `queue.json`.
 * **BLOCKED** tasks wait for dependencies to complete.
-

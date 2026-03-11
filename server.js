@@ -35,6 +35,32 @@ function createApp() {
     return res.json({ status: 'ok' })
   })
 
+  app.get('/tasks/:id/dependencies', (req, res) => {
+    const rows = db.listDependencies(req.params.id)
+    return res.json({ taskId: Number(req.params.id), dependencies: rows.map((r) => r.depends_on) })
+  })
+
+  app.post('/tasks/:id/dependencies', (req, res) => {
+    const taskId = Number(req.params.id)
+    const body = req.body || {}
+    const ids = Array.isArray(body.dependsOn) ? body.dependsOn : [body.dependsOn]
+
+    if (!ids.length || ids.some((id) => !Number.isInteger(Number(id)))) {
+      return res.status(400).json({ status: 'error', error: 'dependsOn must be an id or array of ids' })
+    }
+
+    const numericIds = ids.map((id) => Number(id))
+    db.addDependencies(taskId, numericIds)
+    return res.json({ status: 'ok', taskId, dependsOn: numericIds })
+  })
+
+  app.delete('/tasks/:id/dependencies/:dependsOnId', (req, res) => {
+    const taskId = Number(req.params.id)
+    const dependsOnId = Number(req.params.dependsOnId)
+    const result = db.removeDependency(taskId, dependsOnId)
+    return res.json({ status: 'ok', removed: result.changes > 0 })
+  })
+
   app.post('/tasks/:id/complete', (req, res) => {
     queue.complete(req.params.id)
     res.json({ status: 'ok' })

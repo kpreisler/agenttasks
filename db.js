@@ -34,7 +34,8 @@ function init() {
   db.prepare(`
  CREATE TABLE IF NOT EXISTS task_dependencies (
  task_id INTEGER,
- depends_on INTEGER
+ depends_on INTEGER,
+ UNIQUE(task_id, depends_on)
  )`).run()
 }
 
@@ -48,7 +49,8 @@ function createTask(data) {
  `)
   const values = cols.map((c) => data[c] || null)
   const state = allowedStates.has(data.state) ? data.state : 'inbox'
-  stmt.run(state, JSON.stringify(data.payload || {}), now, now, ...values)
+  const result = stmt.run(state, JSON.stringify(data.payload || {}), now, now, ...values)
+  return result.lastInsertRowid
 }
 
 function listTasks() {
@@ -64,7 +66,25 @@ function logEvent(taskId, type, message) {
 }
 
 function addDependency(task, depends) {
-  db.prepare('INSERT INTO task_dependencies (task_id,depends_on) VALUES (?,?)').run(task, depends)
+  db.prepare('INSERT OR IGNORE INTO task_dependencies (task_id,depends_on) VALUES (?,?)').run(task, depends)
+}
+
+function addDependencies(taskId, dependsOnIds) {
+  const stmt = db.prepare('INSERT OR IGNORE INTO task_dependencies (task_id,depends_on) VALUES (?,?)')
+  const tx = db.transaction((ids) => {
+    for (const dependsOnId of ids) {
+      stmt.run(taskId, dependsOnId)
+    }
+  })
+  tx(dependsOnIds)
+}
+
+function listDependencies(taskId) {
+  return db.prepare('SELECT depends_on FROM task_dependencies WHERE task_id=? ORDER BY depends_on ASC').all(taskId)
+}
+
+function removeDependency(taskId, dependsOnId) {
+  return db.prepare('DELETE FROM task_dependencies WHERE task_id=? AND depends_on=?').run(taskId, dependsOnId)
 }
 
 function dependenciesDone(taskId) {
@@ -113,6 +133,9 @@ module.exports = {
   updateState,
   logEvent,
   addDependency,
+  addDependencies,
+  listDependencies,
+  removeDependency,
   nextRunnable,
   claimTask,
   failTask,
