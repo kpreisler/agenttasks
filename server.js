@@ -2,6 +2,7 @@ const express = require('express')
 const db = require('./db')
 const queue = require('./queue')
 const allowedStates = new Set(require('./config/states.json').states)
+const allowedTaskTypes = new Set(require('./config/task_types.json').taskTypes)
 
 function createApp() {
   const app = express()
@@ -11,20 +12,33 @@ function createApp() {
 
   app.get('/tasks', (req, res) => {
     const state = req.query.state
+    const taskType = req.query.taskType
     if (state && !allowedStates.has(state)) {
       return res.status(400).json({ status: 'error', error: 'invalid state filter' })
     }
-    return res.json(db.listTasks(state))
+    if (taskType && !allowedTaskTypes.has(taskType)) {
+      return res.status(400).json({ status: 'error', error: 'invalid taskType filter' })
+    }
+    return res.json(db.listTasks(state, taskType))
   })
 
   app.post('/tasks', (req, res) => {
-    db.createTask(req.body || {})
-    res.json({ status: 'ok' })
+    const body = req.body || {}
+    const inputType = body.taskType || body.task_type
+    if (inputType && !allowedTaskTypes.has(inputType)) {
+      return res.status(400).json({ status: 'error', error: 'invalid taskType' })
+    }
+    db.createTask(body)
+    return res.json({ status: 'ok' })
   })
 
   app.get('/tasks/next', (req, res) => {
     const agent = req.query.agent || 'default'
-    const task = queue.next(agent)
+    const taskType = req.query.taskType
+    if (taskType && !allowedTaskTypes.has(taskType)) {
+      return res.status(400).json({ status: 'error', error: 'invalid taskType filter' })
+    }
+    const task = queue.next(agent, taskType)
     if (!task) return res.json({ task: null })
     return res.json(task)
   })

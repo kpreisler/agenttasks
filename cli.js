@@ -1,6 +1,7 @@
 const db = require('./db')
 const queue = require('./queue')
 const allowedStates = new Set(require('./config/states.json').states)
+const allowedTaskTypes = new Set(require('./config/task_types.json').taskTypes)
 
 const args = process.argv.slice(2)
 db.init()
@@ -12,28 +13,59 @@ function print(tasks) {
   }
   for (const t of tasks) {
     const agentLabel = t.agent ? ` @${t.agent}` : ''
-    console.log(`#${t.id} [${t.state}]${agentLabel} ${t.title || ''}`)
+    const typeLabel = t.task_type ? ` (${t.task_type})` : ''
+    console.log(`#${t.id} [${t.state}]${agentLabel}${typeLabel} ${t.title || ''}`)
   }
+}
+
+function readFlagValue(argv, flagName) {
+  const i = argv.indexOf(flagName)
+  if (i === -1) return null
+  return argv[i + 1] || null
+}
+
+function stripFlag(argv, flagName) {
+  const i = argv.indexOf(flagName)
+  if (i === -1) return argv.slice()
+  return argv.slice(0, i).concat(argv.slice(i + 2))
 }
 
 const cmd = args[0]
 if (cmd === 'add') {
-  const title = args.slice(1).join(' ')
-  db.createTask({ title, state: 'ready' })
-  console.log('task added')
+  const taskType = readFlagValue(args, '--type')
+  if (taskType && !allowedTaskTypes.has(taskType)) {
+    console.error(`invalid task type: ${taskType}`)
+    process.exitCode = 1
+  } else {
+    const rest = stripFlag(args.slice(1), '--type')
+    const title = rest.join(' ')
+    db.createTask({ title, state: 'ready', task_type: taskType || 'general' })
+    console.log('task added')
+  }
 } else if (cmd === 'list') {
-  const state = args[1]
+  const taskType = readFlagValue(args, '--type')
+  const state = args[1] && args[1] !== '--type' ? args[1] : null
   if (state && !allowedStates.has(state)) {
     console.error(`invalid state filter: ${state}`)
     process.exitCode = 1
+  } else if (taskType && !allowedTaskTypes.has(taskType)) {
+    console.error(`invalid task type filter: ${taskType}`)
+    process.exitCode = 1
   } else {
-    print(db.listTasks(state))
+    print(db.listTasks(state, taskType))
   }
 } else if (cmd === 'next') {
-  const agent = args[1] || 'cli'
-  const task = queue.next(agent)
-  if (!task) console.log('no tasks ready')
-  else console.log(task)
+  const taskType = readFlagValue(args, '--type')
+  const nextArgs = stripFlag(args.slice(1), '--type')
+  const agent = nextArgs[0] || 'cli'
+  if (taskType && !allowedTaskTypes.has(taskType)) {
+    console.error(`invalid task type filter: ${taskType}`)
+    process.exitCode = 1
+  } else {
+    const task = queue.next(agent, taskType)
+    if (!task) console.log('no tasks ready')
+    else console.log(task)
+  }
 } else if (cmd === 'claim') {
   const taskId = args[1]
   const agent = args[2] || 'cli'
@@ -66,5 +98,5 @@ if (cmd === 'add') {
 } else if (cmd === 'fail') {
   queue.fail(args[1], 'cli failure')
 } else {
-  console.log(`Commands\nnode cli.js add "task"\nnode cli.js list [state]\nnode cli.js next agent\nnode cli.js claim <id> <agent>\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
+  console.log(`Commands\nnode cli.js add "task" [--type <taskType>]\nnode cli.js list [state] [--type <taskType>]\nnode cli.js next [agent] [--type <taskType>]\nnode cli.js claim <id> <agent>\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
 }

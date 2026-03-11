@@ -119,6 +119,38 @@ test('GET /tasks/next claims task for agent and returns doing state', async () =
   }
 })
 
+test('GET /tasks/next supports optional taskType filter', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'marketing-task', state: 'ready', taskType: 'marketing', priority: 5 })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'research-task', state: 'ready', taskType: 'research', priority: 10 })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks/next?agent=worker-a&taskType=marketing`)
+    assert.equal(res.status, 200)
+    let claimed = await res.json()
+    assert.equal(claimed.task_type, 'marketing')
+    assert.equal(claimed.title, 'marketing-task')
+
+    res = await fetch(`${srv.baseUrl}/tasks/next?agent=worker-b&taskType=not-valid`)
+    assert.equal(res.status, 400)
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
 test('POST /tasks/:id/claim claims selected claimable task', async () => {
   const ctx = createIsolatedContext()
   const app = ctx.createApp()
@@ -209,6 +241,83 @@ test('GET /tasks supports filtering by state', async () => {
     assert.equal(tasks[0].title, 'r1')
 
     res = await fetch(`${srv.baseUrl}/tasks?state=badstate`)
+    assert.equal(res.status, 400)
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
+test('POST /tasks supports taskType and rejects invalid taskType', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    let res = await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'market task', state: 'ready', taskType: 'marketing' })
+    })
+    assert.equal(res.status, 200)
+
+    res = await fetch(`${srv.baseUrl}/tasks`)
+    let tasks = await res.json()
+    assert.equal(tasks[0].task_type, 'marketing')
+
+    res = await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'bad type task', taskType: 'unknown-type' })
+    })
+    assert.equal(res.status, 400)
+
+    res = await fetch(`${srv.baseUrl}/tasks`)
+    tasks = await res.json()
+    assert.equal(tasks.length, 1)
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
+test('GET /tasks supports filtering by taskType and combined filters', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'm-ready', state: 'ready', taskType: 'marketing' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'r-ready', state: 'ready', taskType: 'research' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'm-inbox', state: 'inbox', taskType: 'marketing' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks?taskType=marketing`)
+    assert.equal(res.status, 200)
+    let tasks = await res.json()
+    assert.equal(tasks.length, 2)
+    assert.ok(tasks.every((t) => t.task_type === 'marketing'))
+
+    res = await fetch(`${srv.baseUrl}/tasks?state=ready&taskType=marketing`)
+    assert.equal(res.status, 200)
+    tasks = await res.json()
+    assert.equal(tasks.length, 1)
+    assert.equal(tasks[0].title, 'm-ready')
+
+    res = await fetch(`${srv.baseUrl}/tasks?taskType=not-valid`)
     assert.equal(res.status, 400)
   } finally {
     await srv.close()

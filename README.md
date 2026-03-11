@@ -55,6 +55,7 @@ task-manager-v1/
 ├─ config/
 │   ├─ states.json       # Task states
 │   ├─ fields.json       # Configurable task fields
+│   ├─ task_types.json   # Allowed task categories
 │   └─ queue.json        # Queue settings (retries, working states)
 └─ tasks.db              # SQLite database (auto-created)
 ```
@@ -75,8 +76,15 @@ task-manager-v1/
 {
   "title": "TEXT",
   "priority": "INTEGER",
-  "agent": "TEXT"
+  "agent": "TEXT",
+  "task_type": "TEXT"
 }
+```
+
+### Task Types (`config/task_types.json`)
+
+```json
+["general","marketing","research","engineering","ops","design"]
 ```
 
 ### Queue Settings (`config/queue.json`)
@@ -112,14 +120,26 @@ API is available at `http://localhost:3000`.
 # Add a task
 node cli.js add "Download video"
 
+# Add a task with type
+node cli.js add "Write campaign copy" --type marketing
+
 # List all tasks
 node cli.js list
 
 # List tasks in a specific state
 node cli.js list ready
 
+# List tasks filtered by type
+node cli.js list --type research
+
+# List tasks filtered by state + type
+node cli.js list ready --type marketing
+
 # Claim next task for an agent
 node cli.js next worker1
+
+# Claim next task for an agent, filtered by task type
+node cli.js next worker1 --type marketing
 
 # Claim a specific task for an agent
 node cli.js claim <task_id> <agent>
@@ -149,9 +169,9 @@ node cli.js fail <task_id>
 
 | Method | Endpoint                 | Description                         |
 | ------ | ------------------------ | ----------------------------------- |
-| GET    | `/tasks`                 | List all tasks (optional `?state=`) |
+| GET    | `/tasks`                 | List tasks (optional `?state=` and/or `?taskType=`) |
 | POST   | `/tasks`                 | Add a new task (JSON body)          |
-| GET    | `/tasks/next?agent=name` | Get next runnable task for an agent |
+| GET    | `/tasks/next?agent=name` | Get next runnable task (optional `&taskType=`) |
 | POST   | `/tasks/:id/claim`       | Claim specific task for an agent    |
 | POST   | `/tasks/:id/state`       | Set task state (generic)            |
 | GET    | `/tasks/:id/dependencies` | List dependencies for task         |
@@ -167,6 +187,7 @@ node cli.js fail <task_id>
 {
   "title": "Download video",
   "priority": 5,
+  "taskType": "research",
   "payload": { "url": "https://example.com/video.mp4" }
 }
 ```

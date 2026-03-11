@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3')
 const fields = require('./config/fields.json').fields
 const allowedStates = new Set(require('./config/states.json').states)
+const allowedTaskTypes = new Set(require('./config/task_types.json').taskTypes)
 
 const dbPath = process.env.TASKS_DB_PATH || 'tasks.db'
 const db = new Database(dbPath)
@@ -21,6 +22,14 @@ function init() {
  updated_at INTEGER,
  ${custom}
  )`).run()
+
+  // Lightweight migration: ensure new configured fields are added to existing DBs.
+  const existingColumns = new Set(db.prepare('PRAGMA table_info(tasks)').all().map((c) => c.name))
+  for (const [name, type] of Object.entries(fields)) {
+    if (!existingColumns.has(name)) {
+      db.prepare(`ALTER TABLE tasks ADD COLUMN ${name} ${type}`).run()
+    }
+  }
 
   db.prepare(`
  CREATE TABLE IF NOT EXISTS task_events (
@@ -47,15 +56,27 @@ function createTask(data) {
  state,payload,created_at,updated_at,${cols.join(',')}
  ) VALUES (?,?,?,?,${cols.map(() => '?').join(',')})
  `)
-  const values = cols.map((c) => data[c] || null)
+  const values = cols.map((c) => {
+    if (c === 'task_type') {
+      const inputType = data.task_type || data.taskType
+      return allowedTaskTypes.has(inputType) ? inputType : 'general'
+    }
+    return data[c] || null
+  })
   const state = allowedStates.has(data.state) ? data.state : 'inbox'
   const result = stmt.run(state, JSON.stringify(data.payload || {}), now, now, ...values)
   return result.lastInsertRowid
 }
 
-function listTasks(state) {
+function listTasks(state, taskType) {
+  if (state && taskType) {
+    return db.prepare('SELECT * FROM tasks WHERE state=? AND task_type=? ORDER BY created_at DESC').all(state, taskType)
+  }
   if (state) {
     return db.prepare('SELECT * FROM tasks WHERE state=? ORDER BY created_at DESC').all(state)
+  }
+  if (taskType) {
+    return db.prepare('SELECT * FROM tasks WHERE task_type=? ORDER BY created_at DESC').all(taskType)
   }
   return db.prepare('SELECT * FROM tasks ORDER BY created_at DESC').all()
 }
@@ -95,9 +116,14 @@ function dependenciesDone(taskId) {
   return rows.every((r) => r.state === 'done')
 }
 
-function nextRunnable() {
+function nextRunnable(taskType) {
   const now = Date.now()
-  const tasks = db.prepare("SELECT * FROM tasks WHERE state='ready' AND run_after<=? ORDER BY priority DESC,created_at ASC").all(now)
+  let tasks
+  if (taskType) {
+    tasks = db.prepare("SELECT * FROM tasks WHERE state='ready' AND run_after<=? AND task_type=? ORDER BY priority DESC,created_at ASC").all(now, taskType)
+  } else {
+    tasks = db.prepare("SELECT * FROM tasks WHERE state='ready' AND run_after<=? ORDER BY priority DESC,created_at ASC").all(now)
+  }
   for (const t of tasks) {
     if (dependenciesDone(t.id)) return t
   }

@@ -1,8 +1,8 @@
 const db = require('./db')
 const queueConfig = require('./config/queue.json')
 
-function next(agent) {
-  const task = db.nextRunnable()
+function next(agent, taskType) {
+  const task = db.nextRunnable(taskType)
   if (!task) return null
   db.claimTask(task.id, agent)
   db.logEvent(task.id, 'claim', `claimed by ${agent}`)
