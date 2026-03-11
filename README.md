@@ -178,10 +178,4 @@ BLOCKED     FAILED
 * **FAILED** tasks will retry based on `queue.json`.
 * **BLOCKED** tasks wait for dependencies to complete.
 
-```
-
-This is **everything in one copyable block**, ready to save as `README.md`.  
-
-If you want, I can also make a **version with a slightly nicer ASCII diagram for multiple dependencies and retries** that looks like a small flowchart. That usually helps visualize pipelines at a glance. Do you want me to do that?
-```
 
