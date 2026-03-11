@@ -6,7 +6,8 @@ db.init()
 
 function print(tasks) {
   for (const t of tasks) {
-    console.log(`#${t.id} [${t.state}] ${t.title || ''}`)
+    const agentLabel = t.agent ? ` @${t.agent}` : ''
+    console.log(`#${t.id} [${t.state}]${agentLabel} ${t.title || ''}`)
   }
 }
 
@@ -16,7 +17,7 @@ if (cmd === 'add') {
   db.createTask({ title, state: 'ready' })
   console.log('task added')
 } else if (cmd === 'list') {
-  print(db.listTasks())
+  print(db.listTasks(args[1]))
 } else if (cmd === 'next') {
   const agent = args[1] || 'cli'
   const task = queue.next(agent)
@@ -54,5 +55,5 @@ if (cmd === 'add') {
 } else if (cmd === 'fail') {
   queue.fail(args[1], 'cli failure')
 } else {
-  console.log(`Commands\nnode cli.js add "task"\nnode cli.js list\nnode cli.js next agent\nnode cli.js claim <id> <agent>\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
+  console.log(`Commands\nnode cli.js add "task"\nnode cli.js list [state]\nnode cli.js next agent\nnode cli.js claim <id> <agent>\nnode cli.js done <id>\nnode cli.js state <id> <state>\nnode cli.js dep add <taskId> <dependsOnId>\nnode cli.js dep list <taskId>\nnode cli.js dep rm <taskId> <dependsOnId>\nnode cli.js fail <id>`)
 }

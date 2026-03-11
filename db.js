@@ -53,7 +53,10 @@ function createTask(data) {
   return result.lastInsertRowid
 }
 
-function listTasks() {
+function listTasks(state) {
+  if (state) {
+    return db.prepare('SELECT * FROM tasks WHERE state=? ORDER BY created_at DESC').all(state)
+  }
   return db.prepare('SELECT * FROM tasks ORDER BY created_at DESC').all()
 }
 

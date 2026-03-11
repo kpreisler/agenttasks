@@ -115,6 +115,9 @@ node cli.js add "Download video"
 # List all tasks
 node cli.js list
 
+# List tasks in a specific state
+node cli.js list ready
+
 # Claim next task for an agent
 node cli.js next worker1
 
@@ -146,7 +149,7 @@ node cli.js fail <task_id>
 
 | Method | Endpoint                 | Description                         |
 | ------ | ------------------------ | ----------------------------------- |
-| GET    | `/tasks`                 | List all tasks                      |
+| GET    | `/tasks`                 | List all tasks (optional `?state=`) |
 | POST   | `/tasks`                 | Add a new task (JSON body)          |
 | GET    | `/tasks/next?agent=name` | Get next runnable task for an agent |
 | POST   | `/tasks/:id/claim`       | Claim specific task for an agent    |

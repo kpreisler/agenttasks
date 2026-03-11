@@ -10,7 +10,11 @@ function createApp() {
   db.init()
 
   app.get('/tasks', (req, res) => {
-    res.json(db.listTasks())
+    const state = req.query.state
+    if (state && !allowedStates.has(state)) {
+      return res.status(400).json({ status: 'error', error: 'invalid state filter' })
+    }
+    return res.json(db.listTasks(state))
   })
 
   app.post('/tasks', (req, res) => {

@@ -151,6 +151,72 @@ test('POST /tasks/:id/claim claims selected claimable task', async () => {
   }
 })
 
+test('GET /tasks includes agent for claimed tasks', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'show-agent', state: 'ready' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks`)
+    let tasks = await res.json()
+    const taskId = tasks[0].id
+
+    await fetch(`${srv.baseUrl}/tasks/${taskId}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ agent: 'dashboard-user' })
+    })
+
+    res = await fetch(`${srv.baseUrl}/tasks`)
+    tasks = await res.json()
+    assert.equal(tasks[0].agent, 'dashboard-user')
+    assert.equal(tasks[0].state, 'doing')
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
+test('GET /tasks supports filtering by state', async () => {
+  const ctx = createIsolatedContext()
+  const app = ctx.createApp()
+  const srv = await withServer(app)
+
+  try {
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'r1', state: 'ready' })
+    })
+    await fetch(`${srv.baseUrl}/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'i1', state: 'inbox' })
+    })
+
+    let res = await fetch(`${srv.baseUrl}/tasks?state=ready`)
+    assert.equal(res.status, 200)
+    let tasks = await res.json()
+    assert.equal(tasks.length, 1)
+    assert.equal(tasks[0].state, 'ready')
+    assert.equal(tasks[0].title, 'r1')
+
+    res = await fetch(`${srv.baseUrl}/tasks?state=badstate`)
+    assert.equal(res.status, 400)
+  } finally {
+    await srv.close()
+    ctx.db.close()
+    fs.rmSync(ctx.dir, { recursive: true, force: true })
+  }
+})
+
 test('legacy /complete endpoint still marks task done', async () => {
   const ctx = createIsolatedContext()
   const app = ctx.createApp()
