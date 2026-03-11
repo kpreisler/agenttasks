@@ -118,6 +118,9 @@ node cli.js list
 # Claim next task for an agent
 node cli.js next worker1
 
+# Set task to any state
+node cli.js state <task_id> <state>
+
 # Mark a task as done
 node cli.js done <task_id>
 
@@ -134,7 +137,8 @@ node cli.js fail <task_id>
 | GET    | `/tasks`                 | List all tasks                      |
 | POST   | `/tasks`                 | Add a new task (JSON body)          |
 | GET    | `/tasks/next?agent=name` | Get next runnable task for an agent |
-| POST   | `/tasks/:id/complete`    | Mark task complete                  |
+| POST   | `/tasks/:id/state`       | Set task state (generic)            |
+| POST   | `/tasks/:id/complete`    | Mark task complete (legacy shortcut)|
 | POST   | `/tasks/:id/fail`        | Mark task failed                    |
 | POST   | `/tasks/:id/event`       | Log a custom event for task         |
 
@@ -177,5 +181,4 @@ BLOCKED     FAILED
 * **DOING** tasks are in progress.
 * **FAILED** tasks will retry based on `queue.json`.
 * **BLOCKED** tasks wait for dependencies to complete.
-
 

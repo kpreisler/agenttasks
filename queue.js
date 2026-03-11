@@ -1,15 +1,26 @@
-const db=require('./db')
-const queueConfig=require('./config/queue.json')
+const db = require('./db')
+const queueConfig = require('./config/queue.json')
 
-function next(agent){
- const task=db.nextRunnable()
- if(!task) return null
- db.claimTask(task.id,agent)
- db.logEvent(task.id,'claim',`claimed by ${agent}`)
- return task
+function next(agent) {
+  const task = db.nextRunnable()
+  if (!task) return null
+  db.claimTask(task.id, agent)
+  db.logEvent(task.id, 'claim', `claimed by ${agent}`)
+  return db.getTaskById(task.id)
 }
 
-function complete(id){ db.updateState(id,'done'); db.logEvent(id,'complete','task finished') }
-function fail(id,message){ db.logEvent(id,'error',message); db.failTask(id,queueConfig) }
+function setState(id, state, eventType = 'state', message = `state changed to ${state}`) {
+  db.updateState(id, state)
+  db.logEvent(id, eventType, message)
+}
 
-module.exports={next,complete,fail}
+function complete(id) {
+  setState(id, 'done', 'complete', 'task finished')
+}
+
+function fail(id, message) {
+  db.logEvent(id, 'error', message)
+  db.failTask(id, queueConfig)
+}
+
+module.exports = { next, setState, complete, fail }
