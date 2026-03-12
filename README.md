@@ -1,285 +1,78 @@
-````markdown
-# Agent Task Manager v1
+# AgentTasks Skills Showcase
 
-A lightweight **local task management and orchestration system** built with Node.js, Express, and SQLite.  
+Public demo repository for showcasing agent task orchestration and Codex skill-driven operations.
 
-Supports:  
-- Configurable task fields and states  
-- Agent-based task queue  
-- Task dependencies  
-- Automatic retries with backoff  
-- JSON payloads  
-- CLI and REST API  
-- Event logging  
+This project contains:
+- A lightweight task API and queue engine (`Express` + `SQLite`)
+- A CLI for task operations
+- A drag/drop web board at `/ui`
+- An operator skill definition under `skills/openclaw-agenttasks`
 
----
+## Purpose
 
-## Table of Contents
+This repo is designed to demonstrate how an agent can:
+- Create, triage, and claim work
+- Manage task lifecycle and dependencies
+- Operate through CLI, API, or UI
+- Follow explicit workflow guardrails from a skill file
 
-- [Installation](#installation)  
-- [Project Structure](#project-structure)  
-- [Configuration](#configuration)  
-- [Running the API](#running-the-api)  
-- [Web UI](#web-ui)  
-- [CLI Usage](#cli-usage)  
-- [API Endpoints](#api-endpoints)  
-- [Task Dependencies & Retries](#task-dependencies--retries)  
-- [License](#license)  
+## Project Layout
 
----
-
-## Installation
-
-```bash
-# Create project folder
-mkdir ./task-manager-v1
-cd ./task-manager-v1
-
-# Initialize npm
-npm init -y
-npm install express better-sqlite3
-````
-
-If you used the setup script, everything is already in `./task-manager-v1`.
-
----
-
-## Project Structure
-
-```
-task-manager-v1/
-├─ package.json          # npm project
-├─ server.js             # REST API
-├─ db.js                 # SQLite DB helper
-├─ queue.js              # Queue and task logic
-├─ cli.js                # CLI for adding/listing tasks
-├─ public/ui/            # Drag/drop web board
-│   ├─ index.html
-│   ├─ styles.css
-│   └─ app.js
+```text
+.
+├─ server.js
+├─ db.js
+├─ queue.js
+├─ cli.js
 ├─ config/
-│   ├─ states.json       # Task states
-│   ├─ fields.json       # Configurable task fields
-│   ├─ task_types.json   # Allowed task categories
-│   └─ queue.json        # Queue settings (retries, working states)
-└─ tasks.db              # SQLite database (auto-created)
+├─ public/ui/
+├─ skills/openclaw-agenttasks/
+│  ├─ SKILL.md
+│  ├─ references/
+│  └─ agents/
+├─ test/
+└─ tasks.db
 ```
 
----
-
-## Configuration
-
-### Task States (`config/states.json`)
-
-```json
-["inbox","ready","doing","blocked","done","failed"]
-```
-
-### Task Fields (`config/fields.json`)
-
-```json
-{
-  "title": "TEXT",
-  "description": "TEXT",
-  "priority": "INTEGER",
-  "agent": "TEXT",
-  "task_type": "TEXT"
-}
-```
-
-### Task Types (`config/task_types.json`)
-
-```json
-["general","marketing","research","engineering","ops","design"]
-```
-
-### Queue Settings (`config/queue.json`)
-
-```json
-{
-  "readyStates": ["ready"],
-  "workingState": "doing",
-  "maxAttempts": 3,
-  "retryDelayMs": 5000
-}
-```
-
-* `maxAttempts`: retries before marking task `failed`
-* `retryDelayMs`: delay (ms) before retrying a failed task
-
----
-
-## Running the API
+## Quickstart
 
 ```bash
-cd ./task-manager-v1
+npm install
+npm test
 npm start
 ```
 
-API is available at `http://localhost:3000`.
+After starting:
+- API: `http://127.0.0.1:3000`
+- Board UI: `http://127.0.0.1:3000/ui`
 
-## Web UI
+## Skills Demo
 
-Open `http://localhost:3000/ui` for the drag-and-drop board interface.
+Primary skill file:
+- `skills/openclaw-agenttasks/SKILL.md`
 
-Features:
-* Column board by task state
-* Drag tasks between states (Trello-style)
-* Create tasks, edit task details, claim next, and claim selected cards
-* Auto-refresh every few seconds
+Supporting references:
+- `skills/openclaw-agenttasks/references/api-cli-cheatsheet.md`
+- `skills/openclaw-agenttasks/references/task-lifecycle-rules.md`
 
----
+Suggested demo flow:
+1. Start API with `npm start`.
+2. Create a task with `node cli.js add "Demo task" --type research`.
+3. Move it to ready with `node cli.js state <id> ready`.
+4. Claim work with `node cli.js next demo-agent --type research`.
+5. Open `/ui` and verify state changes visually.
 
-## CLI Usage
+## Key Endpoints
 
-```bash
-# Add a task
-node cli.js add "Download video"
+- `GET /tasks`
+- `POST /tasks`
+- `PATCH /tasks/:id`
+- `GET /tasks/next?agent=<name>&taskType=<type>`
+- `POST /tasks/:id/claim`
+- `POST /tasks/:id/state`
+- `GET /meta`
 
-# Add a task with type
-node cli.js add "Write campaign copy" --type marketing
+## Notes
 
-# List all tasks
-node cli.js list
-
-# List tasks in a specific state
-node cli.js list ready
-
-# List tasks filtered by type
-node cli.js list --type research
-
-# List tasks filtered by state + type
-node cli.js list ready --type marketing
-
-# Claim next task for an agent
-node cli.js next worker1
-
-# Claim next task for an agent, filtered by task type
-node cli.js next worker1 --type marketing
-
-# Claim a specific task for an agent
-node cli.js claim <task_id> <agent>
-
-# Update a task
-node cli.js update <task_id> --description "Updated details" --type marketing
-
-# Set task to any state
-node cli.js state <task_id> <state>
-
-# Add dependency: task_id depends on depends_on_id
-node cli.js dep add <task_id> <depends_on_id>
-
-# List dependency ids for task
-node cli.js dep list <task_id>
-
-# Remove dependency
-node cli.js dep rm <task_id> <depends_on_id>
-
-# Mark a task as done
-node cli.js done <task_id>
-
-# Mark a task as failed
-node cli.js fail <task_id>
-```
-
----
-
-## API Endpoints
-
-| Method | Endpoint                 | Description                         |
-| ------ | ------------------------ | ----------------------------------- |
-| GET    | `/tasks`                 | List tasks (optional `?state=`, `?taskType=`, and/or `?agent=`) |
-| GET    | `/tasks/:id`             | Get a task by id                    |
-| POST   | `/tasks`                 | Add a new task (JSON body)          |
-| PATCH  | `/tasks/:id`             | Update editable task fields         |
-| GET    | `/tasks/next?agent=name` | Get next runnable task (optional `&taskType=`) |
-| POST   | `/tasks/:id/claim`       | Claim specific task for an agent    |
-| POST   | `/tasks/:id/state`       | Set task state (generic)            |
-| GET    | `/tasks/:id/dependencies` | List dependencies for task         |
-| POST   | `/tasks/:id/dependencies` | Add dependency/dependencies to task|
-| DELETE | `/tasks/:id/dependencies/:dependsOnId` | Remove a dependency    |
-| POST   | `/tasks/:id/complete`    | Mark task complete (legacy shortcut)|
-| POST   | `/tasks/:id/fail`        | Mark task failed                    |
-| POST   | `/tasks/:id/event`       | Log a custom event for task         |
-
-**Example JSON body to add a task:**
-
-```json
-{
-  "title": "Download video",
-  "priority": 5,
-  "taskType": "research",
-  "payload": { "url": "https://example.com/video.mp4" }
-}
-```
-
-`GET /tasks` returns each task with an `id` field.  
-Use that `id` for endpoints like `GET /tasks/:id`, `PATCH /tasks/:id`, `/tasks/:id/state`, `/tasks/:id/claim`, and dependency routes.
-
-Heartbeat pattern example (agent checks current work, else claims next):
-
-```bash
-# 1) Check in-progress tasks for this agent
-curl "http://localhost:3000/tasks?state=doing&agent=worker-a"
-
-# 2) If none, claim next matching task
-curl "http://localhost:3000/tasks/next?agent=worker-a&taskType=research"
-```
-
-New tasks are created in `inbox` by default.  
-To be picked up by an agent (`/tasks/next` or `/tasks/:id/claim`), a task must be moved to `ready`.
-
-**Example transition:**
-
-```bash
-# Create task (starts in inbox)
-node cli.js add "Download video"
-
-# Move task to ready so it can be picked up
-node cli.js state <task_id> ready
-```
-
----
-
-## Task Dependencies & Retries
-
-* Tasks can depend on other tasks using `task_dependencies` (managed via `db.js`)
-* Tasks automatically retry based on `queue.json`
-* Exceeding `maxAttempts` marks the task as `failed`
-
-### Dependency Enforcement Rules
-
-* Dependency checks are enforced when fetching work from the queue (`GET /tasks/next`), not when setting state.
-* The same claimability rules apply to direct claiming (`POST /tasks/:id/claim` and `node cli.js claim`).
-* A task is runnable only if it is in `ready` state and **all** dependency tasks are in `done` state.
-* You can still manually set any valid state through `POST /tasks/:id/state`, even if dependencies are unresolved.
-* If a task has no dependencies, it can be dequeued as soon as it is `ready` (and `run_after` allows it).
-* If a task is in `blocked`, it will automatically move to `ready` when all of its dependencies become `done`.
-
-**Example flow:**
-
-1. Task `B` depends on task `A`.
-2. If `B` is `blocked`, it stays blocked while `A` is not `done`.
-3. Once `A` is set to `done`, `B` auto-moves to `ready` and becomes eligible for `/tasks/next`.
-
----
-
-## License
-
-MIT License — free to use and modify.
-
----
-
-## Optional Diagram of Task Flow
-
-```
-READY ──▶ DOING ──▶ DONE
-  │         │
-  ▼         ▼
-BLOCKED     FAILED
-```
-
-* Tasks in **READY** state are picked up by agents.
-* **DOING** tasks are in progress.
-* **FAILED** tasks will retry based on `queue.json`.
-* **BLOCKED** tasks wait for dependencies to complete.
+- This repository is scoped to AgentTasks and skill operations.
+- Marketing/website content is maintained separately.
